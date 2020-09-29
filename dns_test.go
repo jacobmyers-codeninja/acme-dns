@@ -88,51 +88,45 @@ OUTER:
 	return errors.New("Expected answer(s) not found")
 }
 
-func hasExpectedResolveTXTs(t *testing.T, seq int, tests []testRecord) bool {
+func hasExpectedResolveTXTs(tests []testRecord) error {
 	resolv := resolver{server: "127.0.0.1:15353"}
 
 	for i, test := range tests {
 		answer, err := resolv.lookup(test.subDomain+".auth.example.org", dns.TypeTXT)
 		if err != nil {
 			if test.getAnswer {
-				t.Fatalf("Test %d-%d: Expected answer but got: %v", seq, i, err)
-				return false
+				return fmt.Errorf("%d: Expected answer but got: %v", i, err)
 			}
 		} else {
 			if !test.getAnswer {
-				t.Errorf("Test %d-%d: Expected no answer, but got one.", seq, i)
-				return false
+				return fmt.Errorf("%d: Expected no answer, but got one", i)
 			}
 		}
 
 		if len(answer.Answer) > 0 {
 			if !test.getAnswer && answer.Answer[0].Header().Rrtype != dns.TypeSOA {
-				t.Errorf("Test %d-%d: Expected no answer, but got: [%q]", seq, i, answer)
-				return false
+				return fmt.Errorf("%d: Expected no answer, but got: [%q]", i, answer)
 			}
 			if test.getAnswer {
 				err = hasExpectedTXTAnswer(answer.Answer, test.expTXT)
 				if err != nil {
 					if test.validAnswer {
-						t.Errorf("Test %d-%d: %v", seq, i, err)
-						return false
+						return fmt.Errorf("%d: %v", i, err)
 					}
 				} else {
 					if !test.validAnswer {
-						t.Errorf("Test %d-%d: Answer was not expected to be valid, answer [%q], compared to [%s]", seq, i, answer, test.expTXT)
-						return false
+						return fmt.Errorf("%d: Answer was not expected to be valid, answer [%q], compared to [%s]", i, answer, test.expTXT)
 					}
 				}
 			}
 		} else {
 			if test.getAnswer {
-				t.Errorf("Test %d-%d: Expected answer, but didn't get one", seq, i)
-				return false
+				return fmt.Errorf("%d: Expected answer, but didn't get one", i)
 			}
 		}
 	}
 
-	return true
+	return nil
 }
 
 func TestQuestionDBError(t *testing.T) {
@@ -298,15 +292,17 @@ func TestResolveTXT(t *testing.T) {
 		return
 	}
 
-	success := false
-	success = hasExpectedResolveTXTs(t, 0, []testRecord{
+	seq := 0
+	err = hasExpectedResolveTXTs([]testRecord{
 		{atxt.Subdomain, []string{validTXT}, true, true},
 		{atxt.Subdomain, []string{"invalid"}, true, false},
 		{"a097455b-52cc-4569-90c8-7a4b97c6eba8", []string{validTXT}, false, false},
 	})
-	if success != true {
+	if err != nil {
+		t.Fatalf("Test %d: %s", seq, err)
 		return
 	}
+	seq++
 
 	//Add 2nd record and verify it works as expected (both results)
 	atxt.Value = validTXT2
@@ -316,14 +312,16 @@ func TestResolveTXT(t *testing.T) {
 		return
 	}
 
-	success = hasExpectedResolveTXTs(t, 1, []testRecord{
+	err = hasExpectedResolveTXTs([]testRecord{
 		{atxt.Subdomain, []string{validTXT, validTXT2}, true, true},
 		{atxt.Subdomain, []string{"invalid"}, true, false},
 		{"a097455b-52cc-4569-90c8-7a4b97c6eba8", []string{validTXT}, false, false},
 	})
-	if success != true {
+	if err != nil {
+		t.Fatalf("Test %d: %s", seq, err)
 		return
 	}
+	seq++
 
 	//Delete the record and rerun the test, should see only first result again
 	atxt.Value = validTXT2
@@ -333,14 +331,16 @@ func TestResolveTXT(t *testing.T) {
 		return
 	}
 
-	success = hasExpectedResolveTXTs(t, 2, []testRecord{
+	err = hasExpectedResolveTXTs([]testRecord{
 		{atxt.Subdomain, []string{validTXT}, true, true},
 		{atxt.Subdomain, []string{"invalid"}, true, false},
 		{"a097455b-52cc-4569-90c8-7a4b97c6eba8", []string{validTXT}, false, false},
 	})
-	if success != true {
+	if err != nil {
+		t.Fatalf("Test %d: %s", seq, err)
 		return
 	}
+	seq++
 
 	//Delete the record and rerun the test, should see nothing
 	atxt.Value = validTXT
@@ -350,11 +350,16 @@ func TestResolveTXT(t *testing.T) {
 		return
 	}
 
-	success = hasExpectedResolveTXTs(t, 3, []testRecord{
+	err = hasExpectedResolveTXTs([]testRecord{
 		{atxt.Subdomain, []string{"empty"}, false, false},
 		{atxt.Subdomain, []string{"invalid"}, false, false},
 		{"a097455b-52cc-4569-90c8-7a4b97c6eba8", []string{validTXT}, false, false},
 	})
+	if err != nil {
+		t.Fatalf("Test %d: %s", seq, err)
+		return
+	}
+	seq++
 }
 
 func TestCaseInsensitiveResolveA(t *testing.T) {
