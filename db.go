@@ -48,7 +48,8 @@ var txtTablePG = `
 		LastUpdate INT
 	);`
 
-var txtTableIndex = `CREATE INDEX IF NOT EXIST txtSubdomainIndex ON txt(Subdomain);`
+var txtTableIndex = `CREATE INDEX IF NOT EXISTS txtSubdomainIndex ON txt(Subdomain, LastUpdate);`
+var txtTableIndexPG = `CREATE INDEX IF NOT EXISTS txtRowIdIndex ON txt(rowid);`
 
 // getSQLiteStmt replaces all PostgreSQL prepared statement placeholders (eg. $1, $2) with SQLite variant "?"
 func getSQLiteStmt(s string) string {
@@ -76,6 +77,8 @@ func (d *acmedb) Init(engine string, connection string) error {
 		_, err = d.DB.Exec(txtTable)
 	} else {
 		_, err = d.DB.Exec(txtTablePG)
+		// The PG table has an extra rowid that isn't primary key and thus not auto-indexed, add an index for it too
+		_, err = d.DB.Exec(txtTableIndexPG)
 	}
 	_, err = d.DB.Exec(txtTableIndex)
 	// If everything is fine, handle db upgrade tasks
