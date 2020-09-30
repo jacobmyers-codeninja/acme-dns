@@ -16,18 +16,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-//FancyHandleError - this logs the function name as well.
-/*
-func FancyHandleError(err error, depth int) {
-	if err != nil {
-		pc, fn, line, _ := runtime.Caller(depth + 1)
-
-		fmt.Printf("[error] in %s[%s:%d] %v\n", runtime.FuncForPC(pc).Name(), fn, line, err)
-	}
-	return
-}
-*/
-
 // DBVersion shows the database version this code uses. This is used for update checks.
 var DBVersion = 1
 
