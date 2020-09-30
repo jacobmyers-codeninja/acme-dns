@@ -48,6 +48,8 @@ var txtTablePG = `
 		LastUpdate INT
 	);`
 
+var txtTableIndex = `CREATE INDEX IF NOT EXIST txtSubdomainIndex ON txt(Subdomain);`
+
 // getSQLiteStmt replaces all PostgreSQL prepared statement placeholders (eg. $1, $2) with SQLite variant "?"
 func getSQLiteStmt(s string) string {
 	re, _ := regexp.Compile("\\$[0-9]")
@@ -75,6 +77,7 @@ func (d *acmedb) Init(engine string, connection string) error {
 	} else {
 		_, err = d.DB.Exec(txtTablePG)
 	}
+	_, err = d.DB.Exec(txtTableIndex)
 	// If everything is fine, handle db upgrade tasks
 	if err == nil {
 		err = d.checkDBUpgrades(versionString)
