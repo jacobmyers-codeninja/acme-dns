@@ -53,6 +53,9 @@ func prepareConfig(conf DNSConfig) (DNSConfig, error) {
 	if conf.API.ACMECacheDir == "" {
 		conf.API.ACMECacheDir = "api-certs"
 	}
+	if conf.Database.TXTEntriesCount == 0 {
+		conf.Database.TXTEntriesCount = 2
+	}
 
 	return conf, nil
 }

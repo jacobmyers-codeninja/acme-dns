@@ -133,9 +133,9 @@ func TestPrepareConfig(t *testing.T) {
 		input       DNSConfig
 		shoulderror bool
 	}{
-		{DNSConfig{Database: dbsettings{Engine: "whatever", Connection: "whatever_too"}}, false},
-		{DNSConfig{Database: dbsettings{Engine: "", Connection: "whatever_too"}}, true},
-		{DNSConfig{Database: dbsettings{Engine: "whatever", Connection: ""}}, true},
+		{DNSConfig{Database: dbsettings{Engine: "whatever", Connection: "whatever_too", TXTEntriesCount: 2}}, false},
+		{DNSConfig{Database: dbsettings{Engine: "", Connection: "whatever_too", TXTEntriesCount: 2}}, true},
+		{DNSConfig{Database: dbsettings{Engine: "whatever", Connection: "", TXTEntriesCount: 2}}, true},
 	} {
 		_, err := prepareConfig(test.input)
 		if test.shoulderror {

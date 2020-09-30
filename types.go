@@ -36,8 +36,9 @@ type general struct {
 }
 
 type dbsettings struct {
-	Engine     string
-	Connection string
+	Engine          string
+	Connection      string
+	TXTEntriesCount int `toml:"txt_entries_limit"`
 }
 
 // API config
