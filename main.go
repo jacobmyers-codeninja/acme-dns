@@ -129,10 +129,10 @@ func startHTTPAPI(errChan chan error, config DNSConfig, dnsservers []*DNSServer)
 		path = Config.API.Path
 	}
 	// Make sure path starts and ends with /
-	if path[0] != '/' {
+	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
 	}
-	if path[len(path)-1] != '/' {
+	if !strings.HasSuffix(path, "/") {
 		path += "/"
 	}
 	// Check for custom registration endpoint, default to register if not given
@@ -140,6 +140,9 @@ func startHTTPAPI(errChan chan error, config DNSConfig, dnsservers []*DNSServer)
 	if Config.API.RegisterEndpoint != "" {
 		registerEndpoint = Config.API.RegisterEndpoint
 	}
+	// Ensure registerEndpoint doesn't start with a /
+	registerEndpoint = strings.TrimPrefix(registerEndpoint, "/")
+	
 	if !Config.API.DisableRegistration {
 		api.POST(path+registerEndpoint, webRegisterPost)
 	}
