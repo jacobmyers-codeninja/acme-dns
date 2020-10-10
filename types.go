@@ -76,6 +76,7 @@ type database interface {
 	GetByUsername(uuid.UUID) (ACMETxt, error)
 	GetTXTForDomain(string) ([]string, error)
 	Update(ACMETxtPost) error
+	Delete(ACMETxtPost) error
 	GetBackend() *sql.DB
 	SetBackend(*sql.DB)
 	Close()
