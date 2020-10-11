@@ -46,7 +46,7 @@ func getExpect(t *testing.T, server *httptest.Server) *httpexpect.Expect {
 	})
 }
 
-func setupRouter(debug bool, noauth bool) http.Handler {
+func setupRouter(debug bool, noauth bool, path string, register string) http.Handler {
 	api := httprouter.New()
 	var dbcfg = dbsettings{
 		Engine:          "sqlite3",
@@ -71,20 +71,26 @@ func setupRouter(debug bool, noauth bool) http.Handler {
 		OptionsPassthrough: false,
 		Debug:              Config.General.Debug,
 	})
-	api.POST("/register", webRegisterPost)
-	api.GET("/health", healthCheck)
+	if path == "" {
+		path = "/"
+	}
+	if register == "" {
+		register = "register"
+	}
+	api.POST(path+register, webRegisterPost)
+	api.GET(path+"health", healthCheck)
 	if noauth {
-		api.POST("/update", noAuth(webUpdatePost))
-		api.POST("/delete", noAuth(webDeletePost))
+		api.POST(path+"update", noAuth(webUpdatePost))
+		api.POST(path+"delete", noAuth(webDeletePost))
 	} else {
-		api.POST("/update", Auth(webUpdatePost))
-		api.POST("/delete", Auth(webDeletePost))
+		api.POST(path+"update", Auth(webUpdatePost))
+		api.POST(path+"delete", Auth(webDeletePost))
 	}
 	return c.Handler(api)
 }
 
 func TestApiRegister(t *testing.T) {
-	router := setupRouter(false, false)
+	router := setupRouter(false, false, "", "")
 	server := httptest.NewServer(router)
 	defer server.Close()
 	e := getExpect(t, server)
@@ -120,7 +126,7 @@ func TestApiRegister(t *testing.T) {
 }
 
 func TestApiRegisterBadAllowFrom(t *testing.T) {
-	router := setupRouter(false, false)
+	router := setupRouter(false, false, "", "")
 	server := httptest.NewServer(router)
 	defer server.Close()
 	e := getExpect(t, server)
@@ -150,7 +156,7 @@ func TestApiRegisterBadAllowFrom(t *testing.T) {
 }
 
 func TestApiRegisterMalformedJSON(t *testing.T) {
-	router := setupRouter(false, false)
+	router := setupRouter(false, false, "", "")
 	server := httptest.NewServer(router)
 	defer server.Close()
 	e := getExpect(t, server)
@@ -177,7 +183,7 @@ func TestApiRegisterMalformedJSON(t *testing.T) {
 }
 
 func TestApiRegisterWithMockDB(t *testing.T) {
-	router := setupRouter(false, false)
+	router := setupRouter(false, false, "", "")
 	server := httptest.NewServer(router)
 	defer server.Close()
 	e := getExpect(t, server)
@@ -201,7 +207,7 @@ func TestApiUpdateWithInvalidSubdomain(t *testing.T) {
 		"subdomain": "",
 		"txt":       ""}
 
-	router := setupRouter(false, false)
+	router := setupRouter(false, false, "", "")
 	server := httptest.NewServer(router)
 	defer server.Close()
 	e := getExpect(t, server)
@@ -231,7 +237,7 @@ func TestApiDeleteWithInvalidSubdomain(t *testing.T) {
 		"subdomain": "",
 		"txt":       ""}
 
-	router := setupRouter(false, false)
+	router := setupRouter(false, false, "", "")
 	server := httptest.NewServer(router)
 	defer server.Close()
 	e := getExpect(t, server)
@@ -261,7 +267,7 @@ func TestApiUpdateWithInvalidTxt(t *testing.T) {
 		"subdomain": "",
 		"txt":       ""}
 
-	router := setupRouter(false, false)
+	router := setupRouter(false, false, "", "")
 	server := httptest.NewServer(router)
 	defer server.Close()
 	e := getExpect(t, server)
@@ -291,7 +297,7 @@ func TestApiDeleteWithInvalidTxt(t *testing.T) {
 		"subdomain": "",
 		"txt":       ""}
 
-	router := setupRouter(false, false)
+	router := setupRouter(false, false, "", "")
 	server := httptest.NewServer(router)
 	defer server.Close()
 	e := getExpect(t, server)
@@ -315,7 +321,7 @@ func TestApiDeleteWithInvalidTxt(t *testing.T) {
 }
 
 func TestApiUpdateWithoutCredentials(t *testing.T) {
-	router := setupRouter(false, false)
+	router := setupRouter(false, false, "", "")
 	server := httptest.NewServer(router)
 	defer server.Close()
 	e := getExpect(t, server)
@@ -327,7 +333,7 @@ func TestApiUpdateWithoutCredentials(t *testing.T) {
 }
 
 func TestApiDeleteWithoutCredentials(t *testing.T) {
-	router := setupRouter(false, false)
+	router := setupRouter(false, false, "", "")
 	server := httptest.NewServer(router)
 	defer server.Close()
 	e := getExpect(t, server)
@@ -345,7 +351,7 @@ func TestApiUpdateWithCredentials(t *testing.T) {
 		"subdomain": "",
 		"txt":       ""}
 
-	router := setupRouter(false, false)
+	router := setupRouter(false, false, "", "")
 	server := httptest.NewServer(router)
 	defer server.Close()
 	e := getExpect(t, server)
@@ -375,7 +381,7 @@ func TestApiDeleteWithCredentials(t *testing.T) {
 		"subdomain": "",
 		"txt":       ""}
 
-	router := setupRouter(false, false)
+	router := setupRouter(false, false, "", "")
 	server := httptest.NewServer(router)
 	defer server.Close()
 	e := getExpect(t, server)
@@ -408,7 +414,7 @@ func TestApiUpdateWithCredentialsMockDB(t *testing.T) {
 	updateJSON["subdomain"] = "a097455b-52cc-4569-90c8-7a4b97c6eba8"
 	updateJSON["txt"] = validTxtData
 
-	router := setupRouter(false, true)
+	router := setupRouter(false, true, "", "")
 	server := httptest.NewServer(router)
 	defer server.Close()
 	e := getExpect(t, server)
@@ -437,7 +443,7 @@ func TestApiDeleteWithCredentialsMockDB(t *testing.T) {
 	updateJSON["subdomain"] = "a097455b-52cc-4569-90c8-7a4b97c6eba8"
 	updateJSON["txt"] = validTxtData
 
-	router := setupRouter(false, true)
+	router := setupRouter(false, true, "", "")
 	server := httptest.NewServer(router)
 	defer server.Close()
 	e := getExpect(t, server)
@@ -463,7 +469,7 @@ func TestApiManyUpdateWithCredentials(t *testing.T) {
 		"subdomain": "",
 		"txt":       ""}
 
-	router := setupRouter(true, false)
+	router := setupRouter(true, false, "", "")
 	server := httptest.NewServer(router)
 	defer server.Close()
 	e := getExpect(t, server)
@@ -524,7 +530,7 @@ func TestApiManyDeleteWithCredentials(t *testing.T) {
 		"subdomain": "",
 		"txt":       ""}
 
-	router := setupRouter(true, false)
+	router := setupRouter(true, false, "", "")
 	server := httptest.NewServer(router)
 	defer server.Close()
 	e := getExpect(t, server)
@@ -584,7 +590,7 @@ func TestApiManyUpdateWithIpCheckHeaders(t *testing.T) {
 		"subdomain": "",
 		"txt":       ""}
 
-	router := setupRouter(false, false)
+	router := setupRouter(false, false, "", "")
 	server := httptest.NewServer(router)
 	defer server.Close()
 	e := getExpect(t, server)
@@ -640,7 +646,7 @@ func TestApiManyDeleteWithIpCheckHeaders(t *testing.T) {
 		"subdomain": "",
 		"txt":       ""}
 
-	router := setupRouter(false, false)
+	router := setupRouter(false, false, "", "")
 	server := httptest.NewServer(router)
 	defer server.Close()
 	e := getExpect(t, server)
@@ -691,9 +697,75 @@ func TestApiManyDeleteWithIpCheckHeaders(t *testing.T) {
 }
 
 func TestApiHealthCheck(t *testing.T) {
-	router := setupRouter(false, false)
+	router := setupRouter(false, false, "", "")
 	server := httptest.NewServer(router)
 	defer server.Close()
 	e := getExpect(t, server)
 	e.GET("/health").Expect().Status(http.StatusOK)
+}
+
+func TestApiCustomRegistration(t *testing.T) {
+	// Make sure a custom registration endpoint works
+	router := setupRouter(false, false, "", "custom-registration")
+	server := httptest.NewServer(router)
+	defer server.Close()
+	e := getExpect(t, server)
+	e.POST("/custom-registration").Expect().
+		Status(http.StatusCreated).
+		JSON().Object().
+		ContainsKey("fulldomain").
+		ContainsKey("subdomain").
+		ContainsKey("username").
+		ContainsKey("password").
+		NotContainsKey("error")
+
+	e.POST("/register").Expect().
+		Status(http.StatusNotFound)
+
+	// Shouldn't affect normal endpoints
+	e.GET("/health").Expect().Status(http.StatusOK)
+}
+
+func TestApiCustomPath(t *testing.T) {
+	// Make sure a custom path works
+	router := setupRouter(false, false, "/topsecret/", "")
+	server := httptest.NewServer(router)
+	defer server.Close()
+	e := getExpect(t, server)
+	e.POST("/topsecret/register").Expect().
+		Status(http.StatusCreated).
+		JSON().Object().
+		ContainsKey("fulldomain").
+		ContainsKey("subdomain").
+		ContainsKey("username").
+		ContainsKey("password").
+		NotContainsKey("error")
+
+	e.POST("/register").Expect().
+		Status(http.StatusNotFound)
+
+	// Make sure a normal endpoint is served under custom path too
+	e.GET("/topsecret/health").Expect().Status(http.StatusOK)
+
+	// The original should no longer work
+	e.GET("/health").Expect().Status(http.StatusNotFound)
+}
+
+func TestApiCustomPathAndRegistration(t *testing.T) {
+	// Make sure a custom registration endpoint and path works
+	router := setupRouter(false, false, "/topsecret/", "custom-registration")
+	server := httptest.NewServer(router)
+	defer server.Close()
+	e := getExpect(t, server)
+	e.POST("/topsecret/custom-registration").Expect().
+		Status(http.StatusCreated).
+		JSON().Object().
+		ContainsKey("fulldomain").
+		ContainsKey("subdomain").
+		ContainsKey("username").
+		ContainsKey("password").
+		NotContainsKey("error")
+
+	e.POST("/register").Expect().
+		Status(http.StatusNotFound)
 }

@@ -55,6 +55,8 @@ type httpapi struct {
 	CorsOrigins         []string
 	UseHeader           bool   `toml:"use_header"`
 	HeaderName          string `toml:"header_name"`
+	RegisterEndpoint    string `toml:"registration_endpoint"`
+	Path                string `tomp:"path"`
 }
 
 // Logging config

@@ -123,12 +123,32 @@ func startHTTPAPI(errChan chan error, config DNSConfig, dnsservers []*DNSServer)
 		// Logwriter for saner log output
 		c.Log = stdlog.New(logwriter, "", 0)
 	}
-	if !Config.API.DisableRegistration {
-		api.POST("/register", webRegisterPost)
+	// Check for custom path, default to just / if not
+	path := "/"
+	if Config.API.Path != "" {
+		path = Config.API.Path
 	}
-	api.POST("/update", Auth(webUpdatePost))
-	api.POST("/delete", Auth(webDeletePost))
-	api.GET("/health", healthCheck)
+	// Make sure path starts and ends with /
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	if !strings.HasSuffix(path, "/") {
+		path += "/"
+	}
+	// Check for custom registration endpoint, default to register if not given
+	registerEndpoint := "register"
+	if Config.API.RegisterEndpoint != "" {
+		registerEndpoint = Config.API.RegisterEndpoint
+	}
+	// Ensure registerEndpoint doesn't start with a /
+	registerEndpoint = strings.TrimPrefix(registerEndpoint, "/")
+	
+	if !Config.API.DisableRegistration {
+		api.POST(path+registerEndpoint, webRegisterPost)
+	}
+	api.POST(path+"update", Auth(webUpdatePost))
+	api.POST(path+"delete", Auth(webDeletePost))
+	api.GET(path+"health", healthCheck)
 
 	host := Config.API.IP + ":" + Config.API.Port
 
