@@ -4,8 +4,9 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"errors"
-	"github.com/erikstmartin/go-testdb"
 	"testing"
+
+	"github.com/erikstmartin/go-testdb"
 )
 
 type testResult struct {
@@ -272,6 +273,83 @@ func TestGetTXTForDomain(t *testing.T) {
 	regNotfound, _ := DB.GetTXTForDomain("does-not-exist")
 	if len(regNotfound) > 0 {
 		t.Errorf("No records should be returned.")
+	}
+
+	// Test expanding the DB to 3 records, this is not the best way to do this
+	// it just updates Config and creates a new user which should get 3 values
+	Config.Database.TXTEntriesCount = 3
+	reg, err = DB.Register(cidrslice{})
+	if err != nil {
+		t.Errorf("Registration failed, got error [%v]", err)
+	}
+
+	txtval3 := "___validation_token_received_OKAY_the_ca___"
+
+	reg.Value = txtval1
+	_ = DB.Update(reg.ACMETxtPost)
+
+	reg.Value = txtval2
+	_ = DB.Update(reg.ACMETxtPost)
+
+	reg.Value = txtval3
+	_ = DB.Update(reg.ACMETxtPost)
+
+	regDomainSlice, err = DB.GetTXTForDomain(reg.Subdomain)
+	if err != nil {
+		t.Errorf("Could not get test user, got error [%v]", err)
+	}
+	if len(regDomainSlice) == 0 {
+		t.Errorf("No rows returned for GetTXTForDomain [%s]", reg.Subdomain)
+	}
+
+	val1found = false
+	val2found = false
+	var val3found = false
+	for _, v := range regDomainSlice {
+		if v == txtval1 {
+			val1found = true
+		}
+		if v == txtval2 {
+			val2found = true
+		}
+		if v == txtval3 {
+			val3found = true
+		}
+	}
+	if !val1found {
+		t.Errorf("No TXT value found for val1")
+	}
+	if !val2found {
+		t.Errorf("No TXT value found for val2")
+	}
+	if !val3found {
+		t.Errorf("No TXT value found for val3")
+	}
+
+	// Reset config to 2 and check again to verify we don't get 3 results anymore
+	Config.Database.TXTEntriesCount = 2
+	regDomainSlice, err = DB.GetTXTForDomain(reg.Subdomain)
+	if err != nil {
+		t.Errorf("Could not get test user, got error [%v]", err)
+	}
+	if len(regDomainSlice) == 0 {
+		t.Errorf("No rows returned for GetTXTForDomain [%s]", reg.Subdomain)
+	}
+
+	count := 0
+	for _, v := range regDomainSlice {
+		if v == txtval1 {
+			count++
+		}
+		if v == txtval2 {
+			count++
+		}
+		if v == txtval3 {
+			count++
+		}
+	}
+	if count != 2 {
+		t.Errorf("Expected 2 results, got %d", count)
 	}
 }
 
