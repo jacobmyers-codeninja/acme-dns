@@ -237,7 +237,7 @@ func TestApiDeleteWithInvalidSubdomain(t *testing.T) {
 		"subdomain": "",
 		"txt":       ""}
 
-	router := setupRouter(false, false)
+	router := setupRouter(false, false, "", "")
 	server := httptest.NewServer(router)
 	defer server.Close()
 	e := getExpect(t, server)
@@ -297,7 +297,7 @@ func TestApiDeleteWithInvalidTxt(t *testing.T) {
 		"subdomain": "",
 		"txt":       ""}
 
-	router := setupRouter(false, false)
+	router := setupRouter(false, false, "", "")
 	server := httptest.NewServer(router)
 	defer server.Close()
 	e := getExpect(t, server)
@@ -333,7 +333,7 @@ func TestApiUpdateWithoutCredentials(t *testing.T) {
 }
 
 func TestApiDeleteWithoutCredentials(t *testing.T) {
-	router := setupRouter(false, false)
+	router := setupRouter(false, false, "", "")
 	server := httptest.NewServer(router)
 	defer server.Close()
 	e := getExpect(t, server)
@@ -443,7 +443,7 @@ func TestApiDeleteWithCredentialsMockDB(t *testing.T) {
 	updateJSON["subdomain"] = "a097455b-52cc-4569-90c8-7a4b97c6eba8"
 	updateJSON["txt"] = validTxtData
 
-	router := setupRouter(false, true)
+	router := setupRouter(false, true, "", "")
 	server := httptest.NewServer(router)
 	defer server.Close()
 	e := getExpect(t, server)
@@ -530,7 +530,7 @@ func TestApiManyDeleteWithCredentials(t *testing.T) {
 		"subdomain": "",
 		"txt":       ""}
 
-	router := setupRouter(true, false)
+	router := setupRouter(true, false, "", "")
 	server := httptest.NewServer(router)
 	defer server.Close()
 	e := getExpect(t, server)
@@ -646,7 +646,7 @@ func TestApiManyDeleteWithIpCheckHeaders(t *testing.T) {
 		"subdomain": "",
 		"txt":       ""}
 
-	router := setupRouter(false, false)
+	router := setupRouter(false, false, "", "")
 	server := httptest.NewServer(router)
 	defer server.Close()
 	e := getExpect(t, server)
