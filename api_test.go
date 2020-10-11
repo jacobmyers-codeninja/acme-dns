@@ -381,7 +381,7 @@ func TestApiDeleteWithCredentials(t *testing.T) {
 		"subdomain": "",
 		"txt":       ""}
 
-	router := setupRouter(false, false)
+	router := setupRouter(false, false, "", "")
 	server := httptest.NewServer(router)
 	defer server.Close()
 	e := getExpect(t, server)
