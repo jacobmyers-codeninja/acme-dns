@@ -468,18 +468,10 @@ func TestApiCustomRegistration(t *testing.T) {
 		ContainsKey("password").
 		NotContainsKey("error")
 
-	e = getExpect(t, server)
-	e.POST("/custom-registration").Expect().
-		Status(http.StatusCreated).
-		JSON().Object().
-		ContainsKey("fulldomain").
-		ContainsKey("subdomain").
-		ContainsKey("username").
-		ContainsKey("password").
-		NotContainsKey("error")
+	e.POST("/register").Expect().
+		Status(http.StatusNotFound)
 
 	// Shouldn't affect normal endpoints
-	e = getExpect(t, server)
 	e.GET("/health").Expect().Status(http.StatusOK)
 }
 
@@ -498,21 +490,13 @@ func TestApiCustomPath(t *testing.T) {
 		ContainsKey("password").
 		NotContainsKey("error")
 
-	e.POST("/topsecret/register").Expect().
-		Status(http.StatusCreated).
-		JSON().Object().
-		ContainsKey("fulldomain").
-		ContainsKey("subdomain").
-		ContainsKey("username").
-		ContainsKey("password").
-		NotContainsKey("error")
+	e.POST("/register").Expect().
+		Status(http.StatusNotFound)
 
 	// Make sure a normal endpoint is served under custom path too
-	e = getExpect(t, server)
 	e.GET("/topsecret/health").Expect().Status(http.StatusOK)
 
 	// The original should no longer work
-	e = getExpect(t, server)
 	e.GET("/health").Expect().Status(http.StatusNotFound)
 }
 
@@ -531,12 +515,6 @@ func TestApiCustomPathAndRegistration(t *testing.T) {
 		ContainsKey("password").
 		NotContainsKey("error")
 
-	e.POST("/topsecret/custom-registration").Expect().
-		Status(http.StatusCreated).
-		JSON().Object().
-		ContainsKey("fulldomain").
-		ContainsKey("subdomain").
-		ContainsKey("username").
-		ContainsKey("password").
-		NotContainsKey("error")
+	e.POST("/register").Expect().
+		Status(http.StatusNotFound)
 }
