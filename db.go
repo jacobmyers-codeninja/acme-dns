@@ -72,7 +72,13 @@ func (d *acmedb) Init(engine string, connection string) error {
 		versionString = "0"
 	}
 	_, err = d.DB.Exec(acmeTable)
+	if err != nil {
+		return err
+	}
 	_, err = d.DB.Exec(userTable)
+	if err != nil {
+		return err
+	}
 	if Config.Database.Engine == "sqlite3" {
 		_, err = d.DB.Exec(txtTable)
 	} else {
@@ -80,18 +86,26 @@ func (d *acmedb) Init(engine string, connection string) error {
 		// The PG table has an extra rowid that isn't primary key and thus not auto-indexed, add an index for it too
 		_, err = d.DB.Exec(txtTableIndexPG)
 	}
+	if err != nil {
+		return err
+	}
 	_, err = d.DB.Exec(txtTableIndex)
 	// If everything is fine, handle db upgrade tasks
-	if err == nil {
-		err = d.checkDBUpgrades(versionString)
+	err = d.checkDBUpgrades(versionString)
+	if err != nil {
+		return err
 	}
-	if err == nil {
-		if versionString == "0" {
-			// No errors so we should now be in version 1
-			insversion := fmt.Sprintf("INSERT INTO acmedns (Name, Value) values('db_version', '%d')", DBVersion)
-			_, err = db.Exec(insversion)
+
+	if versionString == "0" {
+		// No errors so we should now be in version 1
+		insversion := fmt.Sprintf("INSERT INTO acmedns (Name, Value) values('db_version', '%d')", DBVersion)
+		_, err = db.Exec(insversion)
+		if err != nil {
+			return err
 		}
 	}
+
+	err = d.CheckTXTEntries()
 	return err
 }
 
@@ -105,7 +119,6 @@ func (d *acmedb) checkDBUpgrades(versionString string) error {
 		return d.handleDBUpgrades(version)
 	}
 	return nil
-
 }
 
 func (d *acmedb) handleDBUpgrades(version int) error {
@@ -116,9 +129,66 @@ func (d *acmedb) handleDBUpgrades(version int) error {
 }
 
 func (d *acmedb) handleDBUpgradeTo1() error {
+	tx, err := d.DB.Begin()
+	// Rollback if errored, commit if not
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		tx.Commit()
+	}()
+	err = d.RebuildTXTTable(tx)
+	if err != nil {
+		return err
+	}
+	// SQLite doesn't support dropping columns
+	if Config.Database.Engine != "sqlite3" {
+		_, _ = tx.Exec("ALTER TABLE records DROP COLUMN IF EXISTS Value")
+		_, _ = tx.Exec("ALTER TABLE records DROP COLUMN IF EXISTS LastActive")
+	}
+	_, err = tx.Exec("UPDATE acmedns SET Value='1' WHERE Name='db_version'")
+	return err
+}
+
+// Checks the DB to see if the TXTEntries doesn't match, if so will need to trigger a rebuild
+func (d *acmedb) CheckTXTEntries() error {
+	var entriesCountString string
+	_ = d.DB.QueryRow("SELECT Value FROM acmedns WHERE Name='txt_entries_limit'").Scan(&entriesCountString)
+	// Default to 2 if something goes wrong
+	if entriesCountString == "" {
+		entriesCountString = "2"
+	}
+
+	// DB is already setup properly, just continue
+	if entriesCountString == fmt.Sprint(Config.Database.TXTEntriesCount) {
+		return nil
+	}
+
+	// Value must have changed, go ahead and wipe existing records and make the new ones
+	tx, err := d.DB.Begin()
+	// Rollback if errored, commit if not
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		tx.Commit()
+	}()
+	err = d.RebuildTXTTable(tx)
+	// If it went fine update the DB to indicate the proper new value
+	if err == nil {
+		_, err = tx.Exec(fmt.Sprintf("UPDATE acmedns SET Value='%d' WHERE Name='txt_entries_limit'", Config.Database.TXTEntriesCount))
+	}
+
+	return err
+}
+
+// Cleans txt records and generates new ones for all subdomains
+func (d *acmedb) RebuildTXTTable(tx *sql.Tx) error {
 	var err error
 	var subdomains []string
-	rows, err := d.DB.Query("SELECT Subdomain FROM records")
+	rows, err := tx.Query("SELECT Subdomain FROM records")
 	if err != nil {
 		log.WithFields(log.Fields{"error": err.Error()}).Error("Error in DB upgrade")
 		return err
@@ -138,16 +208,12 @@ func (d *acmedb) handleDBUpgradeTo1() error {
 		log.WithFields(log.Fields{"error": err.Error()}).Error("Error in DB upgrade while inserting values")
 		return err
 	}
-	tx, err := d.DB.Begin()
-	// Rollback if errored, commit if not
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-			return
-		}
-		tx.Commit()
-	}()
-	_, _ = tx.Exec("DELETE FROM txt")
+
+	_, err = tx.Exec("DELETE FROM txt")
+	if err != nil {
+		log.WithFields(log.Fields{"error": err.Error()}).Error("Error in DB upgrade while deleting values")
+		return err
+	}
 	for _, subdomain := range subdomains {
 		if subdomain != "" {
 			// Insert two rows for each subdomain to txt table
@@ -158,21 +224,17 @@ func (d *acmedb) handleDBUpgradeTo1() error {
 			}
 		}
 	}
-	// SQLite doesn't support dropping columns
-	if Config.Database.Engine != "sqlite3" {
-		_, _ = tx.Exec("ALTER TABLE records DROP COLUMN IF EXISTS Value")
-		_, _ = tx.Exec("ALTER TABLE records DROP COLUMN IF EXISTS LastActive")
-	}
-	_, err = tx.Exec("UPDATE acmedns SET Value='1' WHERE Name='db_version'")
-	return err
+
+	return nil
 }
 
-// Create two rows for subdomain to the txt table
+// Create rows for subdomain to the txt table
 func (d *acmedb) NewTXTValuesInTransaction(tx *sql.Tx, subdomain string) error {
 	var err error
 	instr := fmt.Sprintf("INSERT INTO txt (Subdomain, LastUpdate) values('%s', 0)", subdomain)
-	_, err = tx.Exec(instr)
-	_, err = tx.Exec(instr)
+	for count := 0; err == nil && count < Config.Database.TXTEntriesCount; count++ {
+		_, err = tx.Exec(instr)
+	}
 	return err
 }
 
@@ -259,7 +321,7 @@ func (d *acmedb) GetTXTForDomain(domain string) ([]string, error) {
 	domain = sanitizeString(domain)
 	var txts []string
 	getSQL := `
-	SELECT Value FROM txt WHERE Subdomain=$1 AND LastUpdate > 0 LIMIT 2
+	SELECT Value FROM txt WHERE Subdomain=$1 AND LastUpdate > 0 LIMIT $2
 	`
 	if Config.Database.Engine == "sqlite3" {
 		getSQL = getSQLiteStmt(getSQL)
@@ -270,7 +332,7 @@ func (d *acmedb) GetTXTForDomain(domain string) ([]string, error) {
 		return txts, err
 	}
 	defer sm.Close()
-	rows, err := sm.Query(domain)
+	rows, err := sm.Query(domain, Config.Database.TXTEntriesCount)
 	if err != nil {
 		return txts, err
 	}
