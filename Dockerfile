@@ -3,7 +3,7 @@ FROM golang:1.13-alpine AS builder
 RUN apk add --update gcc musl-dev git
 
 ENV GOPATH /tmp/buildcache
-RUN git clone -b $SOURCE_BRANCH https://github.com/jacobmyers-codeninja/acme-dns /tmp/acme-dns
+COPY *.go go.* config.cfg /tmp/acme-dns/
 WORKDIR /tmp/acme-dns
 RUN CGO_ENABLED=1 go build
 
